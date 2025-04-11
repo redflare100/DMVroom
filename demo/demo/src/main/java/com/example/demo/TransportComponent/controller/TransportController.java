@@ -1,8 +1,8 @@
-package com.example.demo.controller;
+package com.example.demo.TransportComponent.controller;
 
-import com.example.demo.model.Stop;
-import com.example.demo.model.Transport;
-import com.example.demo.service.WmataService;
+import com.example.demo.TransportComponent.model.Stop;
+import com.example.demo.TransportComponent.model.Transport;
+import com.example.demo.TransportComponent.service.WmataService;
 
 import java.util.List;
 

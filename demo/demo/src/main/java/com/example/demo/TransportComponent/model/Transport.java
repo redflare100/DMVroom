@@ -1,4 +1,4 @@
-package com.example.demo.model;
+package com.example.demo.TransportComponent.model;
 
 public class Transport {
     private String transportName;

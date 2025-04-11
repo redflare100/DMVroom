@@ -1,4 +1,4 @@
-package com.example.demo.service;
+package com.example.demo.TransportComponent.service;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -10,8 +10,8 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
-import com.example.demo.model.Stop;
-import com.example.demo.model.Transport;
+import com.example.demo.TransportComponent.model.Stop;
+import com.example.demo.TransportComponent.model.Transport;
 
 import org.springframework.http.*;
 
