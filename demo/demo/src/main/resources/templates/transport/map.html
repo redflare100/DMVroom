@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>DMVroom World Map</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+        }
+
+        #map {
+            height: 90vh;
+            width: 100%;
+        }
+
+        #stopSelector {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            z-index: 1000;
+            background-color: white;
+            padding: 8px;
+            border-radius: 8px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+        }
+    </style>
+</head>
+<body>
+    <div id="stopSelector">
+        <label for="stopDropdown">Jump to Stop:</label>
+        <select id="stopDropdown">
+            <option value="">Select a stop</option>
+        </select>
+    </div>
+
+    <div id="map"></div>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+
+    <script>
+        const map = L.map('map').setView([38.9072, -77.0369], 11); // DC center
+
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors'
+        }).addTo(map);
+
+        const markerMap = {}; // store markers by stop name
+
+        fetch('/api/stops')
+            .then(response => response.json())
+            .then(data => {
+                const dropdown = document.getElementById("stopDropdown");
+
+                data.forEach((stop, index) => {
+                    const [lat, lon] = stop.geoLocation;
+                    const name = stop.stopName;
+
+                    let popupText = `<strong>${name}</strong>`;
+                    if (stop.nextArrival) {
+                        const t = stop.nextArrival;
+                        popupText += `<br/>Next: ${t.transportName} (${t.transportType})<br/>ETA: ${t.etaTime} mins<br/>Status: ${t.status}`;
+                    }
+
+                    const marker = L.marker([lat, lon]).addTo(map).bindPopup(popupText);
+                    markerMap[name] = marker;
+
+                    // Add to dropdown
+                    const option = document.createElement("option");
+                    option.value = name;
+                    option.textContent = name;
+                    dropdown.appendChild(option);
+                });
+
+                // When a dropdown option is selected, fly to the marker
+                dropdown.addEventListener("change", function () {
+                    const selectedName = this.value;
+                    if (selectedName && markerMap[selectedName]) {
+                        const marker = markerMap[selectedName];
+                        map.flyTo(marker.getLatLng(), 15);
+                        marker.openPopup();
+                    }
+                });
+            });
+    </script>
+</body>
+</html>

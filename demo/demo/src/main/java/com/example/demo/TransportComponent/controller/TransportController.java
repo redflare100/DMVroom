@@ -6,9 +6,10 @@ import com.example.demo.TransportComponent.service.WmataService;
 
 import java.util.List;
 
+import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
 
-@RestController
+@Controller
 @RequestMapping("/api")
 public class TransportController {
 
@@ -18,15 +19,20 @@ public class TransportController {
         this.wmataService = wmataService;
     }
 
+    @ResponseBody
     @GetMapping("/transport")
-    public List<Transport> getBusTransports() {
+    public List<Transport> getTransports() {
         return wmataService.parseTransports();
     }
 
+    @ResponseBody
     @GetMapping("/stops")
     public List<Stop> getAllStops() {
         return wmataService.parseStops();
     }
 
+    @GetMapping("/map")
+    public String showMapPage() {
+        return "transport/map"; 
+    }
 }
-

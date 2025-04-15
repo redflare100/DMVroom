@@ -1,7 +1,9 @@
 package com.example.demo.TransportComponent.service;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -115,55 +117,92 @@ public class WmataService {
     public List<Stop> parseStops() {
         String busUrl = "https://api.wmata.com/Bus.svc/json/jStops";
         String railUrl = "https://api.wmata.com/Rail.svc/json/jStations";
-    
+        String predictionUrlBase = "https://api.wmata.com/NextBusService.svc/json/jPredictions?StopID=";
+
         HttpHeaders headers = new HttpHeaders();
         headers.set("api_key", apiKey);
         HttpEntity<String> entity = new HttpEntity<>(headers);
-    
+
         List<Stop> stopList = new ArrayList<>();
-    
+        List<Transport> transports = parseTransports(); // Step 1: all transports
+
+        // Step 2: Build map for quick lookup by VehicleID
+        Map<String, Transport> vehicleMap = new HashMap<>();
+        for (Transport t : transports) {
+            if ("Bus".equals(t.getTransportType())) {
+                vehicleMap.put(t.getTransportName(), t);
+            }
+        }
+
         try {
-            // Fetch Bus Stops
+            // --- Fetch Bus Stops ---
             ResponseEntity<String> busResponse = restTemplate.exchange(busUrl, HttpMethod.GET, entity, String.class);
             if (busResponse.getStatusCode() == HttpStatus.OK) {
                 JSONObject busJson = new JSONObject(busResponse.getBody());
                 JSONArray stops = busJson.getJSONArray("Stops");
-    
-                for (int i = 0; i < stops.length(); i++) {
+
+                // currently restricted to 100 bus stops as theres over 9,000 stops in the dmv area and relating all of the stops to a Transport is too much
+                for (int i = 0; i < 100; i++) {
                     JSONObject stopObj = stops.getJSONObject(i);
+                    String stopId = stopObj.getString("StopID");
                     String name = stopObj.getString("Name") + " - Bus Stop";
                     double lat = stopObj.getDouble("Lat");
                     double lon = stopObj.getDouble("Lon");
-    
+
                     Stop stop = new Stop(name, List.of(lat, lon));
+
+                    // --- Call Prediction API for this StopID ---
+                    try {
+                        String predictionUrl = predictionUrlBase + stopId;
+                        ResponseEntity<String> predictionResponse = restTemplate.exchange(predictionUrl, HttpMethod.GET, entity, String.class);
+
+                        if (predictionResponse.getStatusCode() == HttpStatus.OK) {
+                            JSONObject predictionJson = new JSONObject(predictionResponse.getBody());
+                            JSONArray predictions = predictionJson.optJSONArray("Predictions");
+
+                            if (predictions != null && predictions.length() > 0) {
+                                JSONObject nextBus = predictions.getJSONObject(0);
+                                String vehicleId = nextBus.optString("VehicleID");
+                                int minutes = nextBus.optInt("Minutes", 0);
+
+                                if (vehicleMap.containsKey(vehicleId)) {
+                                    Transport match = vehicleMap.get(vehicleId);
+                                    match.setEtaTime(minutes);
+                                    stop.setNextArrival(match); // Set the next arrival
+                                }
+                            }
+                        }
+                        // Optional: avoid getting rate-limited
+                        Thread.sleep(200);
+                    } catch (Exception ex) {
+                        System.err.println("Prediction failed for StopID " + stopId + ": " + ex.getMessage());
+                    }
+
                     stopList.add(stop);
                 }
             }
-    
-            // Fetch Train Stops
+
+            // --- Fetch Train Stations (no nextArrival for trains) ---
             ResponseEntity<String> railResponse = restTemplate.exchange(railUrl, HttpMethod.GET, entity, String.class);
             if (railResponse.getStatusCode() == HttpStatus.OK) {
                 JSONObject railJson = new JSONObject(railResponse.getBody());
                 JSONArray stations = railJson.getJSONArray("Stations");
-    
+
                 for (int i = 0; i < stations.length(); i++) {
                     JSONObject station = stations.getJSONObject(i);
                     String name = station.getString("Name") + " - Metro Station";
                     double lat = station.getDouble("Lat");
                     double lon = station.getDouble("Lon");
-    
+
                     Stop stop = new Stop(name, List.of(lat, lon));
                     stopList.add(stop);
                 }
             }
-    
+
         } catch (JSONException e) {
             e.printStackTrace();
         }
-    
+
         return stopList;
     }
-    
-
-
 }
